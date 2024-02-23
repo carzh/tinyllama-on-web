@@ -115,8 +115,11 @@ function App() {
     //   responseContent.concat(response);
     // });
     responseContent = await chatbotResponse(chatMessages);
-    responseContent = responseContent.slice(responseContent.indexOf('assistant|>') + 11);
+    responseContent = responseContent[0]['generated_text'].slice(responseContent[0]['generated_text'].lastIndexOf('assistant|>') + 12);
     setTyping(false);
+
+    console.log("response content");
+    console.log(responseContent);
 
     const newAssistantMessage = {
       message: responseContent,
