@@ -5,6 +5,7 @@ import '@chatscope/chat-ui-kit-styles/dist/default/styles.min.css'
 import { MainContainer, ChatContainer, MessageList, Message, MessageInput, TypingIndicator } from '@chatscope/chat-ui-kit-react'
 import 'bootstrap/dist/css/bootstrap.min.css'
 import { Container, Row, Col } from 'react-bootstrap'
+import { env, pipeline } from '@xenova/transformers'
 
 function App() {
   // REACT COMPONENTS TO HANDLE TRAINING
@@ -13,6 +14,8 @@ function App() {
     const logIntervalMs = 1000;
     const waitAfterLoggingMs = 500;
     let lastLogTime = 0;
+
+  let session;
 
     let messagesQueue = [];
 
@@ -81,21 +84,101 @@ function App() {
     }
   ])
 
-  const handleSend = (message) => {
+  let chatMessages = [
+    {
+      role: "assistant",
+      content: "Hello! Ask me some questions!",
+    }
+  ]
+
+  async function handleSend(message) {
     const newMessage = {
       message: message,
       sender: "You",
       direction: "outgoing"
-    }
+    };
 
     // update messages state
-    setMessages([...messages, newMessage])
+    const messagesListWithNewMessage = [...messages, newMessage];
+    setMessages(messagesListWithNewMessage);
 
-    setTyping(true)
+    chatMessages.push({
+      role: "user",
+      content: message
+    })
+
+    setTyping(true);
     // process message to chatbot
+
+    let responseContent = "";
+    // await chatbotResponse(chatMessages, function (response) {
+    //   responseContent.concat(response);
+    // });
+    responseContent = await chatbotResponse(chatMessages);
+    responseContent = responseContent.slice(responseContent.indexOf('assistant|>') + 11);
+    setTyping(false);
+
+    const newAssistantMessage = {
+      message: responseContent,
+      sender: `TinyLlama [${trainingStatus}]`,
+    };
+
+    chatMessages.push({
+      role: "assistant",
+      content: responseContent
+    })
+
+    setMessages([...messagesListWithNewMessage, newAssistantMessage]);
+  }
+
+  async function chatbotResponse(chatMessages, cbFunc) {
+    if (!session) {
+      session = await createPipeline();
+    }
+
+    console.log('chat messages');
+    console.log(chatMessages);
+    prompt = session.tokenizer.apply_chat_template(chatMessages, {
+      tokenize: false, add_generation_prompt: true
+    });
+    console.log('After the prompt is tokenized');
+
+    const result = await session(prompt, {
+      max_new_tokens: 256,
+      temperature: 0.7,
+      do_sample: true,
+      top_k: 50,
+      // callback_function: function (beams) {
+      //   const decodedText = session.tokenizer.decode(beams[0].output_token_ids, { skip_special_tokens: true });
+      //   cbFunc(decodedText.slice(decodedText.indexOf('assistant|>') + 11));
+      // }
+    });
+
+    console.log(result);
+    return result;
   }
 
   // TRAINING FUNCS
+
+  async function createPipeline() {
+    env.backends.onnx.wasm.numThreads = 1;
+    env.allowRemoteModels=true;
+    env.allowLocalModels = false;
+    env.useFSCache = false;
+    env.useBrowserCache = false;
+    env.backends.onnx.wasm.wasmPaths = './';
+    
+    const model = 'Xenova/TinyLlama-1.1B-Chat-v1.0';
+    // const options = {
+    //   quantized: true,
+    //   session_options: {
+    //     executionProviders: ["wasm"]
+    //   }
+    // }
+    // return await pipeline('text-generation', model, options);
+    return await pipeline('text-generation', model);
+  }
+
   async function train() {
     console.log("Training started");
   }
