@@ -19,12 +19,12 @@ class FlatModel(torch.nn.Module):
 
 # model = FlatModel()
 model = transformers_model
-input_names = ["input_ids", "attention_mask", "position_ids"]
+input_names = ["input_ids", "attention_mask"]
 output_names = ["loss", "logits"]
 
 torch.onnx.export(model,
                   (inputs["input_ids"], inputs["attention_mask"]),
-                  "tinyllama_full_layer2.onnx",
+                  "tinyllama_1_hidden.onnx",
                   input_names = input_names, 
                   output_names = output_names,
                   export_params=True,
@@ -38,7 +38,7 @@ torch.onnx.export(model,
                   }
                   )
 
-onnx_model_path = "tinyllama_full_layer2.onnx"
+onnx_model_path = "tinyllama_1_hidden.onnx"
 # onnx_model_path = "mnist.onnx"
 onnx_model = onnx.load(onnx_model_path)
 requires_grad = [param.name for param in onnx_model.graph.initializer] # if param.name not in requires_grad]
@@ -47,7 +47,7 @@ artifacts.generate_artifacts(
     onnx_model,
     requires_grad=requires_grad,
     frozen_params=frozen_params,
-    loss=artifacts.LossType.MSELoss,
+    loss=artifacts.LossType.CrossEntropyLoss,
     artifact_directory="artifacts_generated_full",
     optimizer=artifacts.OptimType.AdamW,
     ort_format=False,
