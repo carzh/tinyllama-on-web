@@ -17,8 +17,8 @@ class FlatModel(torch.nn.Module):
     def forward(self, *local_inputs):
         return self.model(inputs.input_ids, inputs.attention_mask)
 
-# model = FlatModel()
-model = transformers_model
+model = FlatModel(transformers_model)
+# model = transformers_model
 input_names = ["input_ids", "attention_mask"]
 output_names = ["loss", "logits"]
 
