@@ -9,7 +9,7 @@ import { env, pipeline } from '@xenova/transformers'
 
 function App() {
   // REACT COMPONENTS TO HANDLE TRAINING
-  const lossNodeName = "onnx::loss::8";
+  const lossNodeName = "loss";
 
     const logIntervalMs = 1000;
     const waitAfterLoggingMs = 500;
@@ -139,18 +139,17 @@ function App() {
       session = await createPipeline();
     }
 
-    console.log('chat messages');
-    console.log(chatMessages);
     prompt = session.tokenizer.apply_chat_template(chatMessages, {
       tokenize: false, add_generation_prompt: true
     });
-    console.log('After the prompt is tokenized');
 
+    console.log('before session prompt call');
     const result = await session(prompt, {
       max_new_tokens: 256,
       temperature: 0.7,
       do_sample: true,
-      top_k: 50,
+      // top_k: 50,
+      top_k: 10,
       // callback_function: function (beams) {
       //   const decodedText = session.tokenizer.decode(beams[0].output_token_ids, { skip_special_tokens: true });
       //   cbFunc(decodedText.slice(decodedText.indexOf('assistant|>') + 11));
@@ -171,7 +170,7 @@ function App() {
     env.useBrowserCache = false;
     env.backends.onnx.wasm.wasmPaths = './';
     
-    const model = 'Xenova/TinyLlama-1.1B-Chat-v1.0';
+    const model = 'TinyLlama/TinyLlama-1.1B-Chat-v1.0';
     // const options = {
     //   quantized: true,
     //   session_options: {
