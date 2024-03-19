@@ -122,13 +122,42 @@ onnx_model_path = "rank_0_TinyLlama-1.1B-Chat-v1.0_decoder_merged_model_fp32.onn
 onnx_model = onnx.load(onnx_model_path, load_external_data=False)
 requires_grad = [param.name for param in onnx_model.graph.initializer] # if param.name not in requires_grad]
 frozen_params = []
-artifacts.generate_artifacts(
-    onnx_model,
-    requires_grad=requires_grad,
-    frozen_params=frozen_params,
-    # loss=artifacts.LossType.CrossEntropyLoss,
-    artifact_directory="artifacts_generated_full_test",
-    optimizer=artifacts.OptimType.AdamW,
-    ort_format=False,
-    # loss_input_names=["loss"]
-)
+# artifacts.generate_artifacts(
+#     onnx_model,
+#     requires_grad=requires_grad,
+#     frozen_params=frozen_params,
+#     # loss=artifacts.LossType.CrossEntropyLoss,
+#     artifact_directory="artifacts_generated_full_test",
+#     optimizer=artifacts.OptimType.AdamW,
+#     ort_format=False,
+#     # loss_input_names=["loss"]
+# )
+
+state = ort_api.CheckpointState.load_checkpoint('artifacts_generated_full_test/checkpoint')
+training_model = ort_api.Module('artifacts_generated_full_test/training_model.onnx', state, 'artifacts_generated_full_test/eval_model.onnx')
+optimizer = ort_api.Optimizer('artifacts_generated_full_test/optimizer_model.onnx', training_model)
+
+dataloader = torch.utils.data.DataLoader(dataset_tokenized["train"], batch_size=bs, shuffle=True, collate_fn = collate)
+
+def trainEpoch():
+    training_model.train()
+    losses = []
+    i = 0
+    for batch in dataloader:
+        print(i, 'out of', len(dataloader))
+        forward_inputs = [batch["input_ids"], batch["attention_mask"], batch["position_ids"], batch["labels"]]
+        # print(batch.keys())
+        # print("input ids shape", batch["input_ids"].shape)
+        # print("attention mask shape", batch["attention_mask"].shape)
+        # print("position_ids shape", batch["position_ids"].shape)
+        # print("labels shape", batch["labels"].shape)
+
+        loss, _ = training_model(*forward_inputs)
+        # print('after training acll')
+        optimizer.step()
+        training_model.lazy_reset_grad()
+        losses.append(loss)
+        print(loss)
+        i += 1
+
+trainEpoch()
